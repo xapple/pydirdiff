@@ -4,13 +4,15 @@ b'This module needs Python 2.7.x'
 from __future__ import division
 
 # Special variables #
-__version__ = '1.3.0'
+__version__ = '1.0.0'
 version_string = "pydirdiff version %s" % __version__
 
 # Modules #
 import sys, os
 import pydirdiff
-from plumbing.autopaths import DirectoryPath
+from plumbing.autopaths  import DirectoryPath
+from plumbing.common     import md5sum, natural_sort
+from plumbing.timer      import Timer
 
 # Find the data dir #
 module     = sys.modules[__name__]
@@ -43,8 +45,11 @@ class Analysis(object):
         print version_string + " (pid %i)" % os.getpid()
         print "Codebase at: %s" % pydirdiff
         if git_repo: print "The exact version of the codebase is: " + git_repo.short_hash
-        # Timer #
+        # Time the pipeline execution #
+        self.timer = Timer()
         self.timer.print_start()
+        # Parallelism #
+        self.set_up_parallelism()
         # Do it #
         self.check_directrory_pair(self.first_dir, self.secnd_dir)
         # End message #
@@ -52,33 +57,58 @@ class Analysis(object):
         self.timer.print_end()
         self.timer.print_total_elapsed()
 
-    def flat_contents(self, root):
-        for root, dirs, files in os.walk(root): return set(f for f in files), set(d for d in dirs)
+    def set_up_parallelism(self):
+        from multiprocessing import Pool
+        self.pool = Pool(processes=2)
 
     def check_directrory_pair(self, root1, root2):
         """Just one directory. This is called recursively obviously."""
         # Get files and directories #
-        files1, files2 = self.flat_files(root1), self.flat_files(root2)
-        dirs1,  dirs2  = self.flat_dirs(root1),  self.flat_dirs(root2)
+        files1, dirs1 = self.flat_contents(root1)
+        files2, dirs2 = self.flat_contents(root2)
         # Files missing #
-        missing = files1.symmetric_difference(files2)
+        missing = list(files1.symmetric_difference(files2))
+        missing.sort(key=natural_sort)
         for f in missing:
-            if f in files1: self.output(f, 'f', "Only in first")
-            else:           self.output(f, 'f', "Only in second")
+            if f in files1: self.output(f, root1+'/'+f, 'f', "Only in first")
+            else:           self.output(f, root2+'/'+f, 'f', "Only in second")
         # Directories missing #
-        missing = dirs1.symmetric_difference(dirs2)
+        missing = list(dirs1.symmetric_difference(dirs2))
+        missing.sort(key=natural_sort)
         for d in missing:
-            if d in dirs1:  self.output(d, 'd', "Only in first")
-            else:           self.output(d, 'd', "Only in second")
+            if d in dirs1:  self.output(f, root1+'/'+f, 'd', "Only in first")
+            else:           self.output(f, root2+'/'+f, 'd', "Only in second")
         # Files existing #
-        files = files1.intersection(files2)
-        for f in files:
-            first  =
-            second =
-
+        existing = list(files1.intersection(files2))
+        existing.sort(key=natural_sort)
+        for f in existing:
+            first  = root1+'/'+f
+            second = root2+'/'+f
+            # Size #
+            if os.path.getsize(first) != os.path.getsize(second):
+                self.output(f, first, 'f', 'Diverge in size')
+                continue
+            # Creation time #
+            if os.path.getctime(first) != os.path.getctime(second):
+                self.output(f, first, 'f', 'Diverge in creation date')
+                continue
+            # Modification time #
+            if os.path.getmtime(first) != os.path.getmtime(second):
+                sum1, sum2 = self.pool.apply_async(md5sum, [first, second])
+                if sum1 != sum2:
+                    self.output(f, first, 'f', 'Diverge in contents')
+                    continue
+                self.output(f, first, 'f', 'Diverge only in modification date')
         # Directories existing (recursion) #
-        dirs = set(dirs1).intersection(set(dirs2))
-        for d in dirs: self.check_directrory_pair(d, d)
+        existing = list(dirs1.intersection(dirs2))
+        existing.sort(key=natural_sort)
+        for d in existing:
+            first  = root1+'/'+d
+            second = root2+'/'+d
+            self.check_directrory_pair(first, second)
 
-    def output(self, path, kind, status):
+    def flat_contents(self, root):
+        for root, dirs, files in os.walk(root): return set(f for f in files), set(d for d in dirs)
+
+    def output(self, name, path, kind, status):
         print kind, path, status
