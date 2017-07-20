@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
         name             = 'pydirdiff',
-        version          = '1.0.0',
+        version          = '1.1.0',
         description      = 'pydirdiff is a python package',
         long_description = open('README.md').read(),
         license          = 'MIT',

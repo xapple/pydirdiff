@@ -4,7 +4,7 @@ b'This module needs Python 2.7.x'
 from __future__ import division
 
 # Special variables #
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 version_string = "pydirdiff version %s" % __version__
 
 # Modules #
@@ -35,6 +35,7 @@ class Analysis(object):
     def __init__(self, first_dir, secnd_dir,
                  checksum      = 'md5',
                  skip_dsstore  = True,
+                 verbose       = True,
                 ):
         # Base parameters #
         self.first_dir = DirectoryPath(first_dir)
@@ -45,6 +46,7 @@ class Analysis(object):
         # Attributes #
         self.checksum     = checksum
         self.skip_dsstore = skip_dsstore
+        self.verbose      = verbose
 
     def run(self):
         """A method to run the whole comparison."""
@@ -71,7 +73,23 @@ class Analysis(object):
 
     def check_directrory_pair(self, root1, root2):
         """Just one directory. This is called recursively obviously."""
-        # Get files and directories #
+        # Verbose (can't have line longer than terminal size) #
+        if self.verbose:
+            string = '{:%i.%i}' % (self.columns-9, self.columns-9)
+            string = string.format(root1)
+            sys.stdout.write('\r' + Color.bold + 'Current: ' + Color.end + string)
+            sys.stdout.flush()
+        # Get contents #
+        contents1 = self.flat_contents(root1)
+        contents2 = self.flat_contents(root2)
+        # Check #
+        if contents1 is None:
+            self.output(os.path.basename(root1), root1, 'd', "Error: cannot access")
+            return
+        if contents2 is None:
+            self.output(os.path.basename(root2), root2, 'd', "Error: cannot access")
+            return
+        # Split files and directories #
         files1, dirs1 = self.flat_contents(root1)
         files2, dirs2 = self.flat_contents(root2)
         # Filter the DS_Store #
@@ -111,7 +129,7 @@ class Analysis(object):
                         continue
                 # Checksum #
                 else:
-                    sum1, sum2 = self.pool.apply_async(md5sum, [first, secnd])
+                    sum1, sum2 = self.pool.map(md5sum, (first, secnd))
                     if sum1 != sum2:
                         self.output(f, first, 'f', 'Diverge in contents')
                         continue
@@ -131,16 +149,24 @@ class Analysis(object):
             self.check_directrory_pair(first, secnd)
 
     def flat_contents(self, root):
-        for root, dirs, files in os.walk(root): return set(f for f in files), set(d for d in dirs)
+        for root, dirs, files in os.walk(root):
+            return set(f for f in files), set(d for d in dirs)
 
     def output(self, name, path, kind, status):
         if   'first'    in status:   color = Color.f_cyn
         elif 'secnd'    in status:   color = Color.f_pur
-        elif 'Diverge'  in status:   color = Color.f_ylw
-        elif 'Symbolic' in status:   color = Color.f_wht
-        else:                        color = Color.f_red
+        elif 'content'  in status:   color = Color.f_ylw
+        elif 'size'     in status:   color = Color.f_ylw
+        elif 'date'     in status:   color = Color.f_wht
+        elif 'Symbolic' in status:   color = Color.f_ylw
+        elif 'Error'    in status:   color = Color.ylw + Color.flash + Color.f_red
+        else:                        color = Color.f_grn
         # Print #
         string = kind + ' ' + path + ' ' +  "{0:>{1}}"
         string = string.format(color + status, self.columns - len(string) + 13)
         string = string + Color.end
+        # Print #
+        if self.verbose:
+            sys.stdout.write('\r')
+            sys.stdout.flush()
         print string
