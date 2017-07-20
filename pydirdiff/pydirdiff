@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+# Built-in modules #
+import os, inspect, argparse, re
+from argparse import RawTextHelpFormatter
+
+# Internal modules #
+pydirdiff
+
+# Make a shell arguments parser #
+parser = argparse.ArgumentParser(description=desc, formatter_class=RawTextHelpFormatter)
+
+# All the required arguments #
+parser.add_argument("first_dir", help="The first directory to process", type=str)
+parser.add_argument("secnd_dir", help="The second directory to process", type=str)
+
+# All the optional arguments #
+parameters = {
+    "checksum"      : "Either `md5` or `sha1`. Defaults to `md5`.",
+}
+
+# Parse it #
+for param, hlp in parameters.items(): parser.add_argument("--" + param, help=hlp)
+args      = parser.parse_args()
+first_dir = args.first_dir
+secnd_dir = args.secnd_dir
+kwargs    = {k:getattr(args, k) for k in parameters if getattr(args, k) is not None}
+
+# Run the pipeline #
+pydirdiff.Analysis(first_dir, secnd_dir, **kwargs).run()
