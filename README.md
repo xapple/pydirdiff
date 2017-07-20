@@ -34,3 +34,7 @@ Here is a sample output:
     f /Volumes/Original HD/Documents/Pictures/Avatars/iChatIcons                                                                          Diverge in size
 
 It works by comparing files pairs. If they have both the same size and dates they are assumed identical (instantaneous). If they have different sizes they are automatically flagged as different (instantaneous). If they have different dates (either creation or modification) but same size we compare their md5 sums to know the truth (both files in parallel but still slow).
+
+You can run this tool like this:
+
+    $ pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
