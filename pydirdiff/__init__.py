@@ -52,30 +52,29 @@ class Analysis(object):
         self.timer.print_end()
         self.timer.print_total_elapsed()
 
-    def flat_files(self, d):
-        for root, dirs, files in os.walk(d): return set(os.path.join(root, f) for f in files)
+    def flat_contents(self, root):
+        for root, dirs, files in os.walk(root): return set(f for f in files), set(d for d in dirs)
 
-    def flat_directories(self, d):
-        for root, dirs, files in os.walk(d): return set(os.path.join(root, d) for d in dirs)
-
-    def check_directrory_pair(self):
+    def check_directrory_pair(self, root1, root2):
         """Just one directory. This is called recursively obviously."""
         # Get files and directories #
-        files1, files2 = self.first_dir.flat_files,       self.secnd_dir.flat_files
-        dirs1,  dirs2  = self.first_dir.flat_directories, self.secnd_dir.flat_directories
+        files1, files2 = self.flat_files(root1), self.flat_files(root2)
+        dirs1,  dirs2  = self.flat_dirs(root1),  self.flat_dirs(root2)
         # Files missing #
-        missing = set(files1).symmetric_difference(set(files2))
+        missing = files1.symmetric_difference(files2)
         for f in missing:
             if f in files1: self.output(f, 'f', "Only in first")
             else:           self.output(f, 'f', "Only in second")
         # Directories missing #
-        missing = set(dirs1).symmetric_difference(set(dirs2))
+        missing = dirs1.symmetric_difference(dirs2)
         for d in missing:
-            if d in files1: self.output(d, 'd', "Only in first")
+            if d in dirs1:  self.output(d, 'd', "Only in first")
             else:           self.output(d, 'd', "Only in second")
         # Files existing #
-        files = set(files1).intersection(set(files2))
+        files = files1.intersection(files2)
         for f in files:
+            first  =
+            second =
 
         # Directories existing (recursion) #
         dirs = set(dirs1).intersection(set(dirs2))
