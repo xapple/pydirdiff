@@ -5,9 +5,10 @@ import os, inspect, argparse, re
 from argparse import RawTextHelpFormatter
 
 # Internal modules #
-pydirdiff
+import pydirdiff
 
 # Make a shell arguments parser #
+desc = pydirdiff.version_string
 parser = argparse.ArgumentParser(description=desc, formatter_class=RawTextHelpFormatter)
 
 # All the required arguments #
@@ -17,6 +18,7 @@ parser.add_argument("secnd_dir", help="The second directory to process", type=st
 # All the optional arguments #
 parameters = {
     "checksum"      : "Either `md5` or `sha1`. Defaults to `md5`.",
+    "skip_dsstore"  : "Either `True` or `False`. Defaults to `True`.",
 }
 
 # Parse it #

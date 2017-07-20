@@ -10,11 +10,13 @@ version_string = "pydirdiff version %s" % __version__
 # Modules #
 import sys, os
 import pydirdiff
+from plumbing.git        import GitRepo
 from plumbing.autopaths  import DirectoryPath
 from plumbing.common     import md5sum, natural_sort
 from plumbing.timer      import Timer
+from plumbing.color      import Color
 
-# Find the data dir #
+# Find the dir #
 module     = sys.modules[__name__]
 module_dir = os.path.dirname(module.__file__) + '/'
 repos_dir  = os.path.abspath(module_dir + '../') + '/'
@@ -32,6 +34,7 @@ class Analysis(object):
 
     def __init__(self, first_dir, secnd_dir,
                  checksum      = 'md5',
+                 skip_dsstore  = True,
                 ):
         # Base parameters #
         self.first_dir = DirectoryPath(first_dir)
@@ -39,6 +42,9 @@ class Analysis(object):
         # Check #
         self.first_dir.must_exist()
         self.secnd_dir.must_exist()
+        # Attributes #
+        self.checksum     = checksum
+        self.skip_dsstore = skip_dsstore
 
     def run(self):
         """A method to run the whole comparison."""
@@ -50,8 +56,10 @@ class Analysis(object):
         self.timer.print_start()
         # Parallelism #
         self.set_up_parallelism()
+        # Get and update the terminal length #
+        self.rows, self.columns = map(int, os.popen('stty size', 'r').read().split())
         # Do it #
-        self.check_directrory_pair(self.first_dir, self.secnd_dir)
+        self.check_directrory_pair(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
         # End message #
         print "------------\nSuccess."
         self.timer.print_end()
@@ -66,49 +74,73 @@ class Analysis(object):
         # Get files and directories #
         files1, dirs1 = self.flat_contents(root1)
         files2, dirs2 = self.flat_contents(root2)
+        # Filter the DS_Store #
+        if self.skip_dsstore:
+            files1.discard(".DS_Store")
+            files2.discard(".DS_Store")
         # Files missing #
         missing = list(files1.symmetric_difference(files2))
         missing.sort(key=natural_sort)
         for f in missing:
             if f in files1: self.output(f, root1+'/'+f, 'f', "Only in first")
-            else:           self.output(f, root2+'/'+f, 'f', "Only in second")
+            else:           self.output(f, root2+'/'+f, 'f', "Only in secnd")
         # Directories missing #
         missing = list(dirs1.symmetric_difference(dirs2))
         missing.sort(key=natural_sort)
         for d in missing:
-            if d in dirs1:  self.output(f, root1+'/'+f, 'd', "Only in first")
-            else:           self.output(f, root2+'/'+f, 'd', "Only in second")
+            if d in dirs1:  self.output(d, root1+'/'+d, 'd', "Only in first")
+            else:           self.output(d, root2+'/'+d, 'd', "Only in secnd")
         # Files existing #
         existing = list(files1.intersection(files2))
         existing.sort(key=natural_sort)
         for f in existing:
-            first  = root1+'/'+f
-            second = root2+'/'+f
+            first = root1 + '/' + f
+            secnd = root2 + '/' + f
+            stat1 = os.lstat(first)
+            stat2 = os.lstat(secnd)
             # Size #
-            if os.path.getsize(first) != os.path.getsize(second):
+            if stat1.st_size != stat2.st_size:
                 self.output(f, first, 'f', 'Diverge in size')
                 continue
-            # Creation time #
-            if os.path.getctime(first) != os.path.getctime(second):
-                self.output(f, first, 'f', 'Diverge in creation date')
-                continue
-            # Modification time #
-            if os.path.getmtime(first) != os.path.getmtime(second):
-                sum1, sum2 = self.pool.apply_async(md5sum, [first, second])
-                if sum1 != sum2:
-                    self.output(f, first, 'f', 'Diverge in contents')
-                    continue
-                self.output(f, first, 'f', 'Diverge only in modification date')
+            # Modification and creation time #
+            if (stat1.st_mtime != stat2.st_mtime) or (stat1.st_ctime != stat2.st_ctime):
+                # Special symlink case #
+                if os.path.islink(first):
+                    if os.readlink(first) != os.readlink(secnd):
+                        self.output(f, first, 's', 'Symbolic file divergence')
+                        continue
+                # Checksum #
+                else:
+                    sum1, sum2 = self.pool.apply_async(md5sum, [first, secnd])
+                    if sum1 != sum2:
+                        self.output(f, first, 'f', 'Diverge in contents')
+                        continue
+                self.output(f, first, 'f', 'Diverge only in date')
         # Directories existing (recursion) #
         existing = list(dirs1.intersection(dirs2))
         existing.sort(key=natural_sort)
         for d in existing:
-            first  = root1+'/'+d
-            second = root2+'/'+d
-            self.check_directrory_pair(first, second)
+            first = root1 + '/' + d
+            secnd = root2 + '/' + d
+            # Special symlink case #
+            if os.path.islink(first):
+                if os.readlink(first) != os.readlink(secnd):
+                    self.output(d, first, 's', 'Symbolic dir divergence')
+                continue
+            # Normal case #
+            self.check_directrory_pair(first, secnd)
 
     def flat_contents(self, root):
         for root, dirs, files in os.walk(root): return set(f for f in files), set(d for d in dirs)
 
     def output(self, name, path, kind, status):
-        print kind, path, status
+        if   'first'    in status:   color = Color.f_cyn
+        elif 'secnd'    in status:   color = Color.f_pur
+        elif 'Diverge'  in status:   color = Color.f_ylw
+        elif 'Symbolic' in status:   color = Color.f_wht
+        else:                        color = Color.f_red
+        # Print #
+        string = kind + ' ' + path + ' ' +  "{0:>{1}}"
+        string = string.format(color + status, self.columns - len(string) + 13)
+        string = string + Color.end
+        print string
