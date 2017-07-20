@@ -32,3 +32,5 @@ Here is a sample output:
     f /Volumes/Original HD/Documents/Games/Emulation/MacOS/SheepShaver/Snow version/ROM                                              Diverge only in date
     f /Volumes/Original HD/Documents/Games/Emulation/MacOS/SheepShaver/Snow version/SheepShaver.app/Contents/MacOS/SheepShaver       Diverge only in date
     f /Volumes/Original HD/Documents/Pictures/Avatars/iChatIcons                                                                          Diverge in size
+
+It works by comparing files pairs. If they have both the same size and dates they are assumed identical (instantaneous). If they have different sizes they are automatically flagged as different (instantaneous). If they have different dates (either creation or modification) but same size we compare their md5 sums to know the truth (both files in parallel but still slow).

@@ -35,6 +35,7 @@ class Analysis(object):
     def __init__(self, first_dir, secnd_dir,
                  checksum      = 'md5',
                  skip_dsstore  = True,
+                 skip_dates    = False,
                  verbose       = True,
                 ):
         # Base parameters #
@@ -46,6 +47,7 @@ class Analysis(object):
         # Attributes #
         self.checksum     = checksum
         self.skip_dsstore = skip_dsstore
+        self.skip_dates   = skip_dates
         self.verbose      = verbose
 
     def run(self):
@@ -133,7 +135,7 @@ class Analysis(object):
                     if sum1 != sum2:
                         self.output(f, first, 'f', 'Diverge in contents')
                         continue
-                self.output(f, first, 'f', 'Diverge only in date')
+                if not self.skip_dates: self.output(f, first, 'f', 'Diverge only in date')
         # Directories existing (recursion) #
         existing = list(dirs1.intersection(dirs2))
         existing.sort(key=natural_sort)
