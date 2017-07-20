@@ -65,7 +65,7 @@ class Analysis(object):
         # Do it #
         self.check_directrory_pair(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
         # End message #
-        print "------------\nSuccess."
+        print "\n------------\nSuccess."
         self.timer.print_end()
         self.timer.print_total_elapsed()
 
