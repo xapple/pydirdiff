@@ -49,6 +49,8 @@ class Analysis(object):
         self.skip_dsstore = skip_dsstore
         self.skip_dates   = skip_dates
         self.verbose      = verbose
+        # Other #
+        self.no_differences = True
 
     def run(self):
         """A method to run the whole comparison."""
@@ -65,6 +67,11 @@ class Analysis(object):
         # Do it #
         self.check_directrory_pair(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
         # End message #
+        if self.verbose:
+            sys.stdout.write('\r')
+            sys.stdout.flush()
+        if self.no_differences:
+            print Color.bold + "The two directories were perfectly identical." + Color.end
         print "\n------------\nSuccess."
         self.timer.print_end()
         self.timer.print_total_elapsed()
@@ -163,7 +170,7 @@ class Analysis(object):
         elif 'Symbolic' in status:   color = Color.f_ylw
         elif 'Error'    in status:   color = Color.ylw + Color.flash + Color.f_red
         else:                        color = Color.f_grn
-        # Print #
+        # String #
         string = kind + ' ' + path + ' ' +  "{0:>{1}}"
         string = string.format(color + status, self.columns - len(string) + 13)
         string = string + Color.end
@@ -172,3 +179,5 @@ class Analysis(object):
             sys.stdout.write('\r')
             sys.stdout.flush()
         print string
+        # Record #
+        self.no_differences = False
