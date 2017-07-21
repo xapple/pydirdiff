@@ -1,14 +1,14 @@
-This tool compares two directories recursively and prints any differences.
+# `pydirdiff` version 1.1.1
 
-This enables the verification of the integrity of backups for instance.
+This tool compares two directories recursively and prints any differences. This enables the easy verification of the integrity of backups for instance.
 
-It's much better than doing a (though it's much slower):
+It's much better and clearer than doing a (though it's slower):
 
     rsync -archive --delete --verbose --dry-run --itemize-changes "$FIRST_DIR" "$SECND_DIR"
 
 Here is a sample output:
 
-    pydirdiff version 1.1.0 (pid 9586)
+    pydirdiff version 1.1.1 (pid 9586)
     Codebase at: <module 'pydirdiff' from 'pydirdiff/__init__.py'>
     The exact version of the codebase is: a7c04ad
     Start at: 2017-07-20 17:10:57.168819
@@ -33,8 +33,14 @@ Here is a sample output:
     f /Volumes/Original HD/Documents/Games/Emulation/MacOS/SheepShaver/Snow version/SheepShaver.app/Contents/MacOS/SheepShaver       Diverge only in date
     f /Volumes/Original HD/Documents/Pictures/Avatars/iChatIcons                                                                          Diverge in size
 
-It works by comparing files pairs. If they have both the same size and dates they are assumed identical (instantaneous). If they have different sizes they are automatically flagged as different (instantaneous). If they have different dates (either creation or modification) but same size we compare their md5 sums to know the truth (both files in parallel but still slow).
+It works by comparing files pairs. If they both have the same size and dates they are assumed identical (instantaneous). If they have different sizes they are automatically flagged as different (instantaneous). If they have different dates (either creation or modification) but the same size in bytes, we compare their md5 hashes to know the truth (both files are done in parallel but still slowish).
 
 You can run this tool like this:
 
-    $ pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
+    $ pydirdiff/pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
+
+Or to guarantee you don't run into any permission denied errors:
+
+    $ sudo pydirdiff/pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
+
+`pydirdiff` will never write anything, only read.

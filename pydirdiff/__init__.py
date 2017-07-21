@@ -4,12 +4,19 @@ b'This module needs Python 2.7.x'
 from __future__ import division
 
 # Special variables #
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 version_string = "pydirdiff version %s" % __version__
 
 # Modules #
 import sys, os
 import pydirdiff
+
+# Maybe we don't have the plumbing library in our sys.path #
+try: import plumbing
+except ImportError:
+    sys.path.insert(0, '/repos/plumbing/')
+
+# First party modules #
 from plumbing.git        import GitRepo
 from plumbing.autopaths  import DirectoryPath
 from plumbing.common     import md5sum, natural_sort
@@ -77,12 +84,9 @@ class Analysis(object):
         self.timer.print_total_elapsed()
 
     def set_up_parallelism(self):
-        """TODO: python multiprocessing keyboard interrupt"""
         from multiprocessing import Pool
         self.pool = Pool(processes=2)
 
-
-            # process item here
     def check_directrory_pair(self, root1, root2):
         """Just one directory. This is called recursively obviously."""
         # Verbose (can't have line longer than terminal size) #
@@ -149,8 +153,11 @@ class Analysis(object):
                         continue
                 # Checksum #
                 else:
-                    #sum1, sum2 = self.pool.map(md5sum, (first, secnd))
-                    sum1, sum2 = self.pool.map_async(md5sum, (first, secnd)).get(sys.maxint)
+                    try:
+                        sum1, sum2 = self.pool.map_async(md5sum, (first, secnd)).get(sys.maxint)
+                    except IOError:
+                        self.output(f, first, 'f', "Error: cannot read")
+                        continue
                     if sum1 != sum2:
                         self.output(f, first, 'f', 'Diverge in contents')
                         continue
