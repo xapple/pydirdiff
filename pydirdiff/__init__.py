@@ -77,16 +77,19 @@ class Analysis(object):
         self.timer.print_total_elapsed()
 
     def set_up_parallelism(self):
+        """TODO: python multiprocessing keyboard interrupt"""
         from multiprocessing import Pool
         self.pool = Pool(processes=2)
 
+
+            # process item here
     def check_directrory_pair(self, root1, root2):
         """Just one directory. This is called recursively obviously."""
         # Verbose (can't have line longer than terminal size) #
         if self.verbose:
-            string = '{:%i.%i}' % (self.columns-9, self.columns-9)
+            string = '{:%i.%i}' % (self.columns-10, self.columns-10)
             string = string.format(root1)
-            sys.stdout.write('\r' + Color.bold + 'Current: ' + Color.end + string)
+            sys.stdout.write('\r' + Color.bold + 'Scanning: ' + Color.end + string)
             sys.stdout.flush()
         # Get contents #
         contents1 = self.flat_contents(root1)
@@ -123,8 +126,16 @@ class Analysis(object):
         for f in existing:
             first = root1 + '/' + f
             secnd = root2 + '/' + f
-            stat1 = os.lstat(first)
-            stat2 = os.lstat(secnd)
+            # Possible permission denied (first) #
+            try: stat1 = os.lstat(first)
+            except OSError:
+                self.output(f, first, 'f', "Error: cannot stat")
+                continue
+            # Possible permission denied (second) #
+            try: stat2 = os.lstat(secnd)
+            except OSError:
+                self.output(f, secnd, 'f', "Error: cannot stat")
+                continue
             # Size #
             if stat1.st_size != stat2.st_size:
                 self.output(f, first, 'f', 'Diverge in size')
@@ -172,7 +183,7 @@ class Analysis(object):
         else:                        color = Color.f_grn
         # String #
         string = kind + ' ' + path + ' ' +  "{0:>{1}}"
-        string = string.format(color + status, self.columns - len(string) + 13)
+        string = string.format(color + status, max(1, self.columns - len(string) + 13))
         string = string + Color.end
         # Print #
         if self.verbose:

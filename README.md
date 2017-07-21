@@ -38,3 +38,7 @@ It works by comparing files pairs. If they have both the same size and dates the
 You can run this tool like this:
 
     $ pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
+
+Known bugs:
+
+A keyboard interrupt (Ctrl-C) will not work if the program is calculating md5sums at the time of signal reception because of the famous long standing python bug: https://bugs.python.org/issue8296
