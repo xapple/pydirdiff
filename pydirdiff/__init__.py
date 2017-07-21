@@ -67,18 +67,21 @@ class Analysis(object):
         # Time the pipeline execution #
         self.timer = Timer()
         self.timer.print_start()
+        print "------------"
         # Parallelism #
         self.set_up_parallelism()
         # Get and update the terminal length #
         self.rows, self.columns = map(int, os.popen('stty size', 'r').read().split())
         # Do it #
         self.check_directrory_pair(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
-        # End message #
+        # Clear scanning line #
         if self.verbose:
-            sys.stdout.write('\r')
+            sys.stdout.write('\r\n')
             sys.stdout.flush()
+        # Special message #
         if self.no_differences:
             print Color.bold + "The two directories were perfectly identical." + Color.end
+        # End message #
         print "\n------------\nSuccess."
         self.timer.print_end()
         self.timer.print_total_elapsed()
