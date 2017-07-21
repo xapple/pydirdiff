@@ -149,7 +149,8 @@ class Analysis(object):
                         continue
                 # Checksum #
                 else:
-                    sum1, sum2 = self.pool.map(md5sum, (first, secnd))
+                    #sum1, sum2 = self.pool.map(md5sum, (first, secnd))
+                    sum1, sum2 = self.pool.map_async(md5sum, (first, secnd)).get(sys.maxint)
                     if sum1 != sum2:
                         self.output(f, first, 'f', 'Diverge in contents')
                         continue
