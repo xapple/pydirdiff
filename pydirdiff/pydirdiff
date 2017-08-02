@@ -6,8 +6,7 @@ from argparse import RawTextHelpFormatter
 
 # Maybe we don't have the pydirdiff library in our sys.path #
 try: import pydirdiff
-except ImportError:
-    sys.path.insert(0, '/repos/pydirdiff/')
+except ImportError: sys.path.insert(0, '/repos/pydirdiff/')
 
 # Internal modules #
 import pydirdiff
@@ -24,7 +23,7 @@ parser.add_argument("secnd_dir", help="The second directory to process", type=st
 parameters = {
     "checksum"      : "Either `md5` or `sha1`. Defaults to `md5`.",
     "skip_dsstore"  : "Ignore all '.DS_Store' files. Either `True` or `False`. Defaults to `True`.",
-    "skip_dates"    : "Don't print files that just differ in dates. Either `True` or `False`. Defaults to `False`.",
+    "skip_dates"    : "Don't print files that just differ in dates. Either `True` or `False`. Defaults to `True`.",
     "verbose"       : "Display current directory. Either `True` or `False`. Defaults to `True`.",
 }
 
