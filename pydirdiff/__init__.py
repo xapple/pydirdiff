@@ -8,7 +8,7 @@ __version__ = '1.1.1'
 version_string = "pydirdiff version %s" % __version__
 
 # Modules #
-import sys, os
+import sys, os, re
 from multiprocessing import Pool
 import pydirdiff
 
@@ -205,14 +205,17 @@ class Analysis(object):
         self.count += 1
         # Give color to different messages #
         for keyword in self.status_to_color:
-            if keyword in status: color = self.status_to_color.get(keyword)
+            if keyword in status:
+                color = self.status_to_color.get(keyword)
+                break
         else: color = Color.f_grn
-        # String #
+        # Sanitize input #
+        loc = re.sub("(\s)", lambda m: repr(m.group(0)).strip("'"), path)
+        loc = loc.decode('utf-8')
+        # Build string to print #
         string = u'(%s) ' % kind
-        #string = string + str(self.count) + ' '
-        string = string + path.encode('unicode_escape')
-        num_spaces = max(1, self.columns - len(string) - len(status))
-        string = string + num_spaces * ' '
+        string = string + loc
+        string = string + max(1, self.columns - len(string) - len(status)) * ' '
         string = string + color + status + Color.end
         # Remove the scanning line first #
         if self.verbose:
