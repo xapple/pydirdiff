@@ -9,12 +9,12 @@ version_string = "pydirdiff version %s" % __version__
 
 # Modules #
 import sys, os
+from multiprocessing import Pool
 import pydirdiff
 
 # Maybe we don't have the plumbing library in our sys.path #
 try: import plumbing
-except ImportError:
-    sys.path.insert(0, '/repos/plumbing/')
+except ImportError: sys.path.insert(0, '/repos/plumbing/')
 
 # First party modules #
 from plumbing.git        import GitRepo
@@ -34,7 +34,11 @@ else:                                   git_repo = None
 
 ################################################################################
 class Analysis(object):
-    """The main object."""
+    """The main object.
+    Possible to dos:
+    - Detect file renames.
+    - Detect directory renames and keep comparing contents.
+    """
 
     def __repr__(self): return '<Analysis object on "%s" and "%s">' % \
                         (self.first_dir, self.secnd_dir)
@@ -42,7 +46,7 @@ class Analysis(object):
     def __init__(self, first_dir, secnd_dir,
                  checksum      = 'md5',
                  skip_dsstore  = True,
-                 skip_dates    = False,
+                 skip_dates    = True,
                  verbose       = True,
                 ):
         # Base parameters #
@@ -57,47 +61,43 @@ class Analysis(object):
         self.skip_dates   = skip_dates
         self.verbose      = verbose
         # Other #
-        self.no_differences = True
+        self.count = 0
 
     def run(self):
         """A method to run the whole comparison."""
+        # Intro messages #
         print version_string + " (pid %i)" % os.getpid()
         print "Codebase at: %s" % pydirdiff
         if git_repo: print "The exact version of the codebase is: " + git_repo.short_hash
         # Time the pipeline execution #
         self.timer = Timer()
         self.timer.print_start()
+        # Recap both directories #
         print "------------"
-        # Parallelism #
-        self.set_up_parallelism()
+        print 'First directory: "%s"' % self.first_dir
+        print 'Secnd directory: "%s"' % self.secnd_dir
+        # Set up the parallelism #
+        self.pool = Pool(processes=2)
         # Get and update the terminal length #
         self.rows, self.columns = map(int, os.popen('stty size', 'r').read().split())
         # Do it #
-        self.check_directrory_pair(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
-        # Clear scanning line #
+        self.compare_two_dirs(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
+        # Clear scanning line at the end #
         if self.verbose:
             sys.stdout.write('\r\n')
             sys.stdout.flush()
         # Special message #
-        if self.no_differences:
+        if self.count == 0:
             print Color.bold + "The two directories were perfectly identical." + Color.end
         # End message #
         print "\n------------\nSuccess."
         self.timer.print_end()
         self.timer.print_total_elapsed()
 
-    def set_up_parallelism(self):
-        from multiprocessing import Pool
-        self.pool = Pool(processes=2)
-
-    def check_directrory_pair(self, root1, root2):
-        """Just one directory. This is called recursively obviously."""
-        # Verbose (can't have line longer than terminal size) #
-        if self.verbose:
-            string = '{:%i.%i}' % (self.columns-10, self.columns-10)
-            string = string.format(root1)
-            sys.stdout.write('\r' + Color.bold + 'Scanning: ' + Color.end + string)
-            sys.stdout.flush()
+    def compare_two_dirs(self, root1, root2):
+        """Just one directory pair. This is called recursively obviously."""
+        # Print "Scanning" #
+        if self.verbose: self.print_current_dir(root1)
         # Get contents #
         contents1 = self.flat_contents(root1)
         contents2 = self.flat_contents(root2)
@@ -109,9 +109,9 @@ class Analysis(object):
             self.output(os.path.basename(root2), root2, 'd', "Error: cannot access")
             return
         # Split files and directories #
-        files1, dirs1 = self.flat_contents(root1)
-        files2, dirs2 = self.flat_contents(root2)
-        # Filter the DS_Store #
+        files1, dirs1 = contents1
+        files2, dirs2 = contents2
+        # Filter the stupid .DS_Store files #
         if self.skip_dsstore:
             files1.discard(".DS_Store")
             files2.discard(".DS_Store")
@@ -165,7 +165,7 @@ class Analysis(object):
                         self.output(f, first, 'f', 'Diverge in contents')
                         continue
                 if not self.skip_dates: self.output(f, first, 'f', 'Diverge only in date')
-        # Directories existing (recursion) #
+        # Directories existing #
         existing = list(dirs1.intersection(dirs2))
         existing.sort(key=natural_sort)
         for d in existing:
@@ -176,30 +176,54 @@ class Analysis(object):
                 if os.readlink(first) != os.readlink(secnd):
                     self.output(d, first, 's', 'Symbolic dir divergence')
                 continue
-            # Normal case #
-            self.check_directrory_pair(first, secnd)
+            # Normal case (recursion) #
+            self.compare_two_dirs(first, secnd)
 
     def flat_contents(self, root):
         for root, dirs, files in os.walk(root):
             return set(f for f in files), set(d for d in dirs)
 
+    status_to_color = {
+        'first'   : Color.f_cyn,
+        'secnd'   : Color.f_pur,
+        'content' : Color.f_ylw,
+        'size'    : Color.f_ylw,
+        'date'    : Color.f_wht,
+        'Symbolic': Color.f_ylw,
+        'Error'   : Color.ylw + Color.flash + Color.f_red
+    }
+
     def output(self, name, path, kind, status):
-        if   'first'    in status:   color = Color.f_cyn
-        elif 'secnd'    in status:   color = Color.f_pur
-        elif 'content'  in status:   color = Color.f_ylw
-        elif 'size'     in status:   color = Color.f_ylw
-        elif 'date'     in status:   color = Color.f_wht
-        elif 'Symbolic' in status:   color = Color.f_ylw
-        elif 'Error'    in status:   color = Color.ylw + Color.flash + Color.f_red
-        else:                        color = Color.f_grn
+        """Every difference is either displayed or cataloged by calling
+        this method from `self.compare_two_dirs()`."""
+        # Record #
+        self.count += 1
+        # Give color to different messages #
+        for keyword in self.status_to_color:
+            if keyword in status: color = self.status_to_color.get(keyword)
+        else: color = Color.f_grn
         # String #
-        string = kind + ' ' + path + ' ' +  "{0:>{1}}"
-        string = string.format(color + status, max(1, self.columns - len(string) + 13))
-        string = string + Color.end
-        # Print #
+        string = u'(%s) ' % kind
+        string = string + str(self.count) + ' '
+        string = string + path
+        num_spaces = max(1, self.columns - len(string) - len(status))
+        string = string + num_spaces * ' '
+        string = string + color + status + Color.end
+        # Remove the scanning line first #
         if self.verbose:
             sys.stdout.write('\r')
             sys.stdout.flush()
+        # Print #
         print string
-        # Record #
-        self.no_differences = False
+        # Old way that didn't work because format can throw KeyError #
+        #string = kind + ' ' + path + ' ' +  "{0:>{1}}"
+        #string = string.format(color + status, max(1, self.columns - len(string) + 13))
+
+    def print_current_dir(self, directory):
+        """If verbosity is turned on, display the current directory
+        that is being scanned, and then print '\r' to show the next."""
+        # Verbose (can't have line longer than terminal size) #
+        string = '{:%i.%i}' % (self.columns-10, self.columns-10)
+        string = string.format(directory)
+        sys.stdout.write('\r' + Color.bold + 'Scanning: ' + Color.end + string)
+        sys.stdout.flush()
