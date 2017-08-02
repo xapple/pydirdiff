@@ -195,7 +195,12 @@ class Analysis(object):
 
     def output(self, name, path, kind, status):
         """Every difference is either displayed or cataloged by calling
-        this method from `self.compare_two_dirs()`."""
+        this method from `self.compare_two_dirs()`.
+        One has to be careful with file and directory paths, they are
+        essentially uncontrolled user input. Don't use str.format() because
+        it can throw KeyError if a filename contains `{` and `}`.
+        A path can even contain the character `\r` erasing the line you
+        just printed, so sanitize everything."""
         # Record #
         self.count += 1
         # Give color to different messages #
@@ -204,8 +209,8 @@ class Analysis(object):
         else: color = Color.f_grn
         # String #
         string = u'(%s) ' % kind
-        string = string + str(self.count) + ' '
-        string = string + path
+        #string = string + str(self.count) + ' '
+        string = string + path.encode('unicode_escape')
         num_spaces = max(1, self.columns - len(string) - len(status))
         string = string + num_spaces * ' '
         string = string + color + status + Color.end
@@ -215,9 +220,6 @@ class Analysis(object):
             sys.stdout.flush()
         # Print #
         print string
-        # Old way that didn't work because format can throw KeyError #
-        #string = kind + ' ' + path + ' ' +  "{0:>{1}}"
-        #string = string.format(color + status, max(1, self.columns - len(string) + 13))
 
     def print_current_dir(self, directory):
         """If verbosity is turned on, display the current directory
