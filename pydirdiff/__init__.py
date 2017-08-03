@@ -89,6 +89,8 @@ class Analysis(object):
         # Special message #
         if self.count == 0:
             print Color.bold + "The two directories were perfectly identical." + Color.end
+        else:
+            print "There were %i differences between these two directories." % self.count
         # End message #
         print "\n------------\nSuccess."
         self.timer.print_end()
@@ -229,6 +231,6 @@ class Analysis(object):
         that is being scanned, and then print '\r' to show the next."""
         # Verbose (can't have line longer than terminal size) #
         string = '{:%i.%i}' % (self.columns-10, self.columns-10)
-        string = string.format(directory)
+        string = string.format(directory + '/')
         sys.stdout.write('\r' + Color.bold + 'Scanning: ' + Color.end + string)
         sys.stdout.flush()
