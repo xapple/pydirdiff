@@ -25,6 +25,7 @@ parameters = {
     "skip_dsstore"  : "Ignore all '.DS_Store' files. Either `True` or `False`. Defaults to `True`.",
     "skip_dates"    : "Don't print files that just differ in dates. Either `True` or `False`. Defaults to `True`.",
     "verbose"       : "Display current directory. Either `True` or `False`. Defaults to `True`.",
+    "ignore"        : "Ignore any directories with this name. Defaults to none.",
 }
 
 # Parse it #

@@ -52,6 +52,7 @@ class Analysis(object):
                  skip_dates    = True,
                  verbose       = True,
                  cmp_fn        = 'md5',
+                 ignore        = None,
                 ):
         # Base parameters #
         self.first_dir = DirectoryPath(first_dir)
@@ -63,6 +64,7 @@ class Analysis(object):
         self.skip_dsstore = skip_dsstore
         self.skip_dates   = skip_dates
         self.verbose      = verbose
+        self.ignore       = ignore
         # Other #
         self.count  = 0
         self.errors = 0
@@ -86,6 +88,8 @@ class Analysis(object):
         print "------------"
         print 'First directory: "%s"' % self.first_dir
         print 'Secnd directory: "%s"' % self.secnd_dir
+        # Recap the ignore paramter #
+        if self.ignore: print 'Ignoring all directories named: "%s"' % self.ignore
         # Set up the parallelism #
         self.pool = Pool(processes=2)
         # Get and update the terminal length #
@@ -130,6 +134,10 @@ class Analysis(object):
         if self.skip_dsstore:
             files1.discard(".DS_Store")
             files2.discard(".DS_Store")
+        # Filter the user defined ignores #
+        if self.ignore:
+            dirs1.discard(self.ignore)
+            dirs2.discard(self.ignore)
         # Files missing #
         missing = list(files1.symmetric_difference(files2))
         missing.sort(key=natural_sort)
