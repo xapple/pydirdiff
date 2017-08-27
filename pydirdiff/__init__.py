@@ -8,7 +8,7 @@ __version__ = '1.1.1'
 version_string = "pydirdiff version %s" % __version__
 
 # Modules #
-import sys, os, re
+import sys, os, re, unicodedata
 from multiprocessing import Pool
 import pydirdiff
 
@@ -19,7 +19,7 @@ except ImportError: sys.path.insert(0, '/repos/plumbing/')
 # First party modules #
 from plumbing.git        import GitRepo
 from plumbing.autopaths  import DirectoryPath
-from plumbing.common     import md5sum, natural_sort
+from plumbing.common     import md5sum, natural_sort, sanitize_text
 from plumbing.timer      import Timer
 from plumbing.color      import Color
 
@@ -33,21 +33,25 @@ if os.path.exists(repos_dir + '.git/'): git_repo = GitRepo(repos_dir)
 else:                                   git_repo = None
 
 ################################################################################
+def md5(path): return md5sum(path)
+def sizes_only(path): return os.path.getsize(path)
+
+################################################################################
 class Analysis(object):
-    """The main object.
+    """The God object.
     Possible to dos:
-    - Detect file renames.
-    - Detect directory renames and keep comparing contents.
+        - Detect file renames.
+        - Detect directory renames and keep comparing contents.
     """
 
     def __repr__(self): return '<Analysis object on "%s" and "%s">' % \
                         (self.first_dir, self.secnd_dir)
 
     def __init__(self, first_dir, secnd_dir,
-                 checksum      = 'md5',
                  skip_dsstore  = True,
                  skip_dates    = True,
                  verbose       = True,
+                 cmp_fn        = 'md5',
                 ):
         # Base parameters #
         self.first_dir = DirectoryPath(first_dir)
@@ -56,12 +60,18 @@ class Analysis(object):
         self.first_dir.must_exist()
         self.secnd_dir.must_exist()
         # Attributes #
-        self.checksum     = checksum
         self.skip_dsstore = skip_dsstore
         self.skip_dates   = skip_dates
         self.verbose      = verbose
         # Other #
-        self.count = 0
+        self.count  = 0
+        self.errors = 0
+        # Pick a comparison function #
+        self.cmp_fn = cmp_fn
+        try:
+            self.cmp_fn = getattr(module, self.cmp_fn)
+        except AttributeError:
+            raise Exception("The option '%s' is not a valid comparison function." % self.cmp_fn)
 
     def run(self):
         """A method to run the whole comparison."""
@@ -86,13 +96,16 @@ class Analysis(object):
         if self.verbose:
             sys.stdout.write('\r\n')
             sys.stdout.flush()
-        # Special message #
+        # End message #
+        print "------------"
+        if self.errors == 0: print "Success."
+        else:                print "Success (with non-fatal errors)."
+        # Special summary message #
         if self.count == 0:
             print Color.bold + "The two directories were perfectly identical." + Color.end
         else:
-            print "There were %i differences between these two directories." % self.count
-        # End message #
-        print "\n------------\nSuccess."
+            print "There were %i differences between the two directories." % self.count
+        # Time elapsed #
         self.timer.print_end()
         self.timer.print_total_elapsed()
 
@@ -159,7 +172,7 @@ class Analysis(object):
                 # Checksum #
                 else:
                     try:
-                        sum1, sum2 = self.pool.map_async(md5sum, (first, secnd)).get(sys.maxint)
+                        sum1, sum2 = self.pool.map_async(self.cmp_fn, (first, secnd)).get(sys.maxint)
                     except IOError:
                         self.output(f, first, 'f', "Error: cannot read")
                         continue
@@ -181,6 +194,7 @@ class Analysis(object):
             # Normal case (recursion) #
             self.compare_two_dirs(first, secnd)
 
+    #-------------------------------------------------------------------------#
     def flat_contents(self, root):
         for root, dirs, files in os.walk(root):
             return set(f for f in files), set(d for d in dirs)
@@ -196,7 +210,7 @@ class Analysis(object):
     }
 
     def output(self, name, path, kind, status):
-        """Every difference is either displayed or cataloged by calling
+        """Every difference is either displayed or recorded by calling
         this method from `self.compare_two_dirs()`.
         One has to be careful with file and directory paths, they are
         essentially uncontrolled user input. Don't use str.format() because
@@ -205,6 +219,7 @@ class Analysis(object):
         just printed, so sanitize everything."""
         # Record #
         self.count += 1
+        if 'Error' in status: self.errors += 1
         # Give color to different messages #
         for keyword in self.status_to_color:
             if keyword in status:
@@ -212,13 +227,14 @@ class Analysis(object):
                 break
         else: color = Color.f_grn
         # Sanitize input #
-        loc = re.sub("(\s)", lambda m: repr(m.group(0)).strip("'"), path)
-        loc = loc.decode('utf-8')
+        loc = sanitize_text(path)
         # Build string to print #
         string = u'(%s) ' % kind
         string = string + loc
         string = string + max(1, self.columns - len(string) - len(status)) * ' '
         string = string + color + status + Color.end
+        # Check #
+        assert len(string) > self.columns
         # Remove the scanning line first #
         if self.verbose:
             sys.stdout.write('\r')

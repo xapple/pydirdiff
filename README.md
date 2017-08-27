@@ -37,10 +37,10 @@ It works by comparing files pairs. If they both have the same size and dates the
 
 You can run this tool like this:
 
-    $ pydirdiff/pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
+    $ pydirdiff/pydirdiff /Volumes/Original/ /Volumes/Copy/
 
-Or to guarantee you don't run into any permission denied errors:
+Or to skip md5 checksum and just look at sizes:
 
-    $ sudo pydirdiff/pydirdiff --skip_dates=True /Volumes/Original/ /Volumes/Copy/
+    $ pydirdiff/pydirdiff --cmp_fn=sizes_only /Volumes/Original/ /Volumes/Copy/
 
-`pydirdiff` will never write anything, only read.
+`pydirdiff` will never write anything to disk, only read.
