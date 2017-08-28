@@ -53,6 +53,7 @@ class Analysis(object):
                  verbose       = True,
                  cmp_fn        = 'md5',
                  ignore        = None,
+                 debug         = False,
                 ):
         # Base parameters #
         self.first_dir = DirectoryPath(first_dir)
@@ -65,6 +66,7 @@ class Analysis(object):
         self.skip_dates   = skip_dates
         self.verbose      = verbose
         self.ignore       = ignore
+        self.debug        = debug
         # Other #
         self.count  = 0
         self.errors = 0
@@ -179,6 +181,9 @@ class Analysis(object):
                         continue
                 # Checksum #
                 else:
+                    if self.debug:
+                        print "***\nFile 1: %s\n Modtime: %s\n Creatime: %s\n Size: %s" % (first, stat1.st_mtime, stat1.st_ctime, stat1.st_size)
+                        print "File 2: %s\n Modtime: %s\n Creatime: %s\n Size: %s\n***" % (secnd, stat2.st_mtime, stat2.st_ctime, stat2.st_size)
                     try:
                         sum1, sum2 = self.pool.map_async(self.cmp_fn, (first, secnd)).get(sys.maxint)
                     except IOError:
