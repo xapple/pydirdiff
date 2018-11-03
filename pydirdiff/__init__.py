@@ -1,48 +1,47 @@
-b'This module needs Python 2.7.x'
-
-# Futures #
-from __future__ import division
-
 # Special variables #
-__version__ = '1.1.1'
+__version__ = '1.2.0'
 version_string = "pydirdiff version %s" % __version__
 
-# Modules #
-import sys, os, re, unicodedata
+# Built-in modules #
+import sys, os
 from multiprocessing import Pool
-import pydirdiff
-
-# Maybe we don't have the plumbing library in our sys.path #
-try: import plumbing
-except ImportError: sys.path.insert(0, '/repos/plumbing/')
 
 # First party modules #
-from plumbing.git        import GitRepo
-from plumbing.autopaths  import DirectoryPath
-from plumbing.common     import md5sum, natural_sort, sanitize_text
-from plumbing.timer      import Timer
-from plumbing.color      import Color
+from pydirdiff.plumbing.common     import md5sum, natural_sort, sanitize_text
+from pydirdiff.plumbing.autopaths  import DirectoryPath
+from pydirdiff.plumbing.timer      import Timer
+from pydirdiff.plumbing.color      import Color
+from pydirdiff.plumbing.git        import GitRepo
 
-# Find the dir #
+# This module #
+import pydirdiff
+
+# Find the module's directory #
 module     = sys.modules[__name__]
 module_dir = os.path.dirname(module.__file__) + '/'
 repos_dir  = os.path.abspath(module_dir + '../') + '/'
 
-# If we are in dev mode it's a git repo #
+# If we are in development mode it's a git repository #
 if os.path.exists(repos_dir + '.git/'): git_repo = GitRepo(repos_dir)
 else:                                   git_repo = None
 
+# Constants #
+async_timeout = 60 * 60 * 72
+
 ################################################################################
-def md5(path): return md5sum(path)
+# Comparison functions
 def sizes_only(path): return os.path.getsize(path)
+def md5(path):        return md5sum(path)
+
+# Dictionary to hold them
+comparison_fns = {
+ 'sizes_only': sizes_only,
+ 'md5':        md5,
+}
 
 ################################################################################
 class Analysis(object):
-    """The God object.
-    Possible to dos:
-        - Detect file renames.
-        - Detect directory renames and keep comparing contents.
-    """
+    """The main object that does everything."""
 
     def __repr__(self): return '<Analysis object on "%s" and "%s">' % \
                         (self.first_dir, self.secnd_dir)
@@ -70,28 +69,27 @@ class Analysis(object):
         # Other #
         self.count  = 0
         self.errors = 0
+        # Check the comparison function exists #
+        if cmp_fn not in comparison_fns:
+            raise Exception("The option '%s' is not a valid comparison function." % cmp_fn)
         # Pick a comparison function #
-        self.cmp_fn = cmp_fn
-        try:
-            self.cmp_fn = getattr(module, self.cmp_fn)
-        except AttributeError:
-            raise Exception("The option '%s' is not a valid comparison function." % self.cmp_fn)
+        self.cmp_fn = comparison_fns[cmp_fn]
 
     def run(self):
         """A method to run the whole comparison."""
         # Intro messages #
-        print version_string + " (pid %i)" % os.getpid()
-        print "Codebase at: %s" % pydirdiff
-        if git_repo: print "The exact version of the codebase is: " + git_repo.short_hash
+        print(version_string + " (pid %i)" % os.getpid())
+        print("Codebase at: %s" % pydirdiff)
+        if git_repo: print("The exact version of the codebase is: " + git_repo.short_hash)
         # Time the pipeline execution #
         self.timer = Timer()
         self.timer.print_start()
         # Recap both directories #
-        print "------------"
-        print 'First directory: "%s"' % self.first_dir
-        print 'Secnd directory: "%s"' % self.secnd_dir
+        print("------------")
+        print('First directory: "%s"' % self.first_dir)
+        print('Secnd directory: "%s"' % self.secnd_dir)
         # Recap the ignore paramter #
-        if self.ignore: print 'Ignoring all directories named: "%s"' % self.ignore
+        if self.ignore: print('Ignoring all directories named: "%s"' % self.ignore)
         # Set up the parallelism #
         self.pool = Pool(processes=2)
         # Get and update the terminal length #
@@ -100,24 +98,24 @@ class Analysis(object):
         self.compare_two_dirs(self.first_dir.rstrip('/'), self.secnd_dir.rstrip('/'))
         # Clear scanning line at the end #
         if self.verbose:
-            sys.stdout.write('\r\n')
+            sys.stdout.write('\r')
             sys.stdout.flush()
+        print("------------" + " " * (self.columns - 12))
         # End message #
-        print "------------"
-        if self.errors == 0: print "Success."
-        else:                print "Success (with non-fatal errors)."
+        if self.errors == 0: print("Success.")
+        else:                print("Success (with non-fatal errors).")
         # Special summary message #
         if self.count == 0:
-            print Color.bold + "The two directories were perfectly identical." + Color.end
+            print(Color.bold + "The two directories were perfectly identical." + Color.end)
         else:
-            print "There were %i differences between the two directories." % self.count
+            print("There were %i differences between the two directories." % self.count)
         # Time elapsed #
         self.timer.print_end()
         self.timer.print_total_elapsed()
 
     def compare_two_dirs(self, root1, root2):
-        """Just one directory pair. This is called recursively obviously."""
-        # Print "Scanning" #
+        """Just one directory pair. This is called recursively."""
+        # print "Scanning" #
         if self.verbose: self.print_current_dir(root1)
         # Get contents #
         contents1 = self.flat_contents(root1)
@@ -156,6 +154,7 @@ class Analysis(object):
         existing = list(files1.intersection(files2))
         existing.sort(key=natural_sort)
         for f in existing:
+            # Two files #
             first = root1 + '/' + f
             secnd = root2 + '/' + f
             # Possible permission denied (first) #
@@ -182,12 +181,13 @@ class Analysis(object):
                 # Checksum #
                 else:
                     if self.debug:
-                        print "***\nFile 1: %s\n Modtime: %s\n Creatime: %s\n Size: %s" % (first, stat1.st_mtime, stat1.st_ctime, stat1.st_size)
-                        print "File 2: %s\n Modtime: %s\n Creatime: %s\n Size: %s\n***" % (secnd, stat2.st_mtime, stat2.st_ctime, stat2.st_size)
+                        message = "***\nFile %i: %s\n Modtime: %s\n Creatime: %s\n Size: %s"
+                        print(message % (1, first, stat1.st_mtime, stat1.st_ctime, stat1.st_size))
+                        print(message % (2, secnd, stat2.st_mtime, stat2.st_ctime, stat2.st_size))
                     try:
-                        sum1, sum2 = self.pool.map_async(self.cmp_fn, (first, secnd)).get(sys.maxint)
+                        sum1, sum2 = self.pool.map_async(self.cmp_fn, (first, secnd)).get(async_timeout)
                     except IOError:
-                        self.output(f, first, 'f', "Error: cannot read")
+                        self.output(f, first, 'f', 'Error: cannot read')
                         continue
                     if sum1 != sum2:
                         self.output(f, first, 'f', 'Diverge in contents')
@@ -240,10 +240,10 @@ class Analysis(object):
                 break
         else: color = Color.f_grn
         # Sanitize input #
-        loc = sanitize_text(path)
-        # Build string to print #
+        path = sanitize_text(path)
+        # Build string to print(#
         string = u'(%s) ' % kind
-        string = string + loc
+        string = string + path
         string = string + max(1, self.columns - len(string) - len(status)) * ' '
         string = string + color + status + Color.end
         # Check #
@@ -252,12 +252,12 @@ class Analysis(object):
         if self.verbose:
             sys.stdout.write('\r')
             sys.stdout.flush()
-        # Print #
-        print string
+        # print(#
+        print(string)
 
     def print_current_dir(self, directory):
         """If verbosity is turned on, display the current directory
-        that is being scanned, and then print '\r' to show the next."""
+        that is being scanned, and then print('\r' to show the next."""
         # Verbose (can't have line longer than terminal size) #
         string = '{:%i.%i}' % (self.columns-10, self.columns-10)
         string = string.format(directory + '/')
