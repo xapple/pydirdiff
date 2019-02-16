@@ -2,7 +2,7 @@
 
 This tool compares two directories recursively and prints any differences found between them. This enables the easy verification of the integrity of backups for instance.
 
-Typically you could approach this problem by using a speical `rsync` command such as the following:
+Typically you could approach this problem by using a special `rsync` command such as the following:
 
     rsync -archive --delete --verbose --dry-run --itemize-changes "$FIRST_DIR" "$SECND_DIR"
 
@@ -35,20 +35,24 @@ Here is a sample output:
     f /Volumes/Original HD/Documents/Games/Emulation/MacOS/SheepShaver/Snow version/SheepShaver.app/Contents/MacOS/SheepShaver       Diverge only in date
     f /Volumes/Original HD/Documents/Pictures/Avatars/iChatIcons                                                                          Diverge in size
 
-It works by comparing files pairs. If they both have the same size and dates they are assumed identical (instantaneous). If they have different sizes they are automatically flagged as different (instantaneous). If they have different dates (either creation or modification) but the same size in bytes, we compare their md5 hashes to know the truth (both files are done in parallel but still slowish).
+It works by comparing files pairs. If they both have the same size and dates they are assumed identical (instantaneous). If they have different sizes they are automatically flagged as different (instantaneous). If they have different dates (either creation or modification) but the same size in bytes, we compare their MD5 hashes to know the truth (both files are done in parallel but still slowish).
 
 You can run this tool like this:
 
     $ pydirdiff/pydirdiff /Volumes/Original/ /Volumes/Copy/
 
-Or to skip md5 checksum and just look at sizes:
+Or to skip MD5 checksum and just look at sizes:
 
     $ pydirdiff/pydirdiff --cmp_fn=sizes_only /Volumes/Original/ /Volumes/Copy/
+
+If you want to skip certain directories:
+
+    $ pydirdiff/pydirdiff --ignore=".git" /Volumes/Original/ /Volumes/Copy/
 
 `pydirdiff` will never write anything to disk, only read.
 
 Possible improvements:
 
   * Detect file renames in a fuzzy and probabilistic way.
-  * Detect directory renames and keep comparing contents if they match above a given threshold.
-  * When files have the same size and dates, instead of computing their hashes, we could have a function that starts running through both of them in parallel, and checks divergence every ten megabytes or so to avoid running through the whole files if they have a divergence already in the beginning. This would save some time in a few cases.
+  * Detect directory renames and keep comparing contents if they match above a given threshold of Levenshtein distance.
+  * When files have the same size and dates, instead of computing their complete hashes, we could have a function that starts running through both of them in async IO, and checks divergence every ten megabytes or so to avoid running through the whole files if they have a divergence already in the beginning. This would save some time in a few cases.
