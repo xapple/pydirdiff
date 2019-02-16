@@ -7,3 +7,11 @@
 \#*
 .#*
 ._*
+
+# IDE files #
+/.idea
+
+# Distribution #
+/build/
+/dist/
+/autopaths.egg-info/

@@ -79,7 +79,7 @@ class Analysis(object):
         """A method to run the whole comparison."""
         # Intro messages #
         print(version_string + " (pid %i)" % os.getpid())
-        print("Codebase at: %s" % pydirdiff)
+        print(str(pydirdiff))
         if git_repo: print("The exact version of the codebase is: " + git_repo.short_hash)
         # Time the pipeline execution #
         self.timer = Timer()
@@ -90,6 +90,7 @@ class Analysis(object):
         print('Secnd directory: "%s"' % self.secnd_dir)
         # Recap the ignore paramter #
         if self.ignore: print('Ignoring all directories named: "%s"' % self.ignore)
+        print("------------")
         # Set up the parallelism #
         self.pool = Pool(processes=2)
         # Get and update the terminal length #
