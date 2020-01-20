@@ -5,6 +5,7 @@ setup(
         version          = '1.2.0',
         description      = 'pydirdiff is a python package for comparing directories.',
         long_description = open('README.md').read(),
+        long_description_content_type = 'text/markdown',
         license          = 'MIT',
         url              = 'http://xapple.github.com/pydirdiff/',
         author           = 'Lucas Sinclair',
