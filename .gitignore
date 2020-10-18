@@ -14,4 +14,4 @@
 # Distribution #
 /build/
 /dist/
-/autopaths.egg-info/
+/pydirdiff.egg-info/
