@@ -1,10 +1,9 @@
 # Special variables #
 __version__ = '1.2.0'
-version_string = "pydirdiff version %s" % __version__
+version_string = "version %s" % __version__
 
 # Built-in modules #
 import sys, os
-from multiprocessing import Pool
 
 # First party modules #
 from pydirdiff.plumbing.common     import md5sum, natural_sort, sanitize_text
@@ -25,9 +24,6 @@ repos_dir  = os.path.abspath(module_dir + '../') + '/'
 if os.path.exists(repos_dir + '.git/'): git_repo = GitRepo(repos_dir)
 else:                                   git_repo = None
 
-# Constants #
-async_timeout = 60 * 60 * 72
-
 ################################################################################
 # Comparison functions
 def sizes_only(path): return os.path.getsize(path)
@@ -43,10 +39,13 @@ comparison_fns = {
 class Analysis(object):
     """The main object that does everything."""
 
-    def __repr__(self): return '<Analysis object on "%s" and "%s">' % \
-                        (self.first_dir, self.secnd_dir)
+    def __repr__(self):
+        return '<Analysis object on "%s" and "%s">' % \
+               (self.first_dir, self.secnd_dir)
 
-    def __init__(self, first_dir, secnd_dir,
+    def __init__(self,
+                 first_dir,
+                 secnd_dir,
                  skip_dsstore  = True,
                  skip_dates    = True,
                  verbose       = True,
@@ -78,8 +77,8 @@ class Analysis(object):
     def run(self):
         """A method to run the whole comparison."""
         # Intro messages #
-        print(version_string + " (pid %i)" % os.getpid())
         print(str(pydirdiff))
+        print(version_string + " (pid %i)" % os.getpid())
         if git_repo: print("The exact version of the codebase is: " + git_repo.short_hash)
         # Time the pipeline execution #
         self.timer = Timer()
@@ -88,11 +87,9 @@ class Analysis(object):
         print("------------")
         print('First directory: "%s"' % self.first_dir)
         print('Secnd directory: "%s"' % self.secnd_dir)
-        # Recap the ignore paramter #
+        # Recap the ignore parameter #
         if self.ignore: print('Ignoring all directories named: "%s"' % self.ignore)
         print("------------")
-        # Set up the parallelism #
-        self.pool = Pool(processes=2)
         # Get and update the terminal length #
         self.rows, self.columns = map(int, os.popen('stty size', 'r').read().split())
         # Do it #
@@ -137,8 +134,9 @@ class Analysis(object):
             files2.discard(".DS_Store")
         # Filter the user defined ignores #
         if self.ignore:
-            dirs1.discard(self.ignore)
-            dirs2.discard(self.ignore)
+            for item in self.ignore:
+                dirs1.discard(item)
+                dirs2.discard(item)
         # Files missing #
         missing = list(files1.symmetric_difference(files2))
         missing.sort(key=natural_sort)
@@ -186,7 +184,7 @@ class Analysis(object):
                         print(message % (1, first, stat1.st_mtime, stat1.st_ctime, stat1.st_size))
                         print(message % (2, secnd, stat2.st_mtime, stat2.st_ctime, stat2.st_size))
                     try:
-                        sum1, sum2 = self.pool.map_async(self.cmp_fn, (first, secnd)).get(async_timeout)
+                        sum1, sum2 = map(self.cmp_fn, (first, secnd))
                     except IOError:
                         self.output(f, first, 'f', 'Error: cannot read')
                         continue
@@ -224,13 +222,17 @@ class Analysis(object):
     }
 
     def output(self, name, path, kind, status):
-        """Every difference is either displayed or recorded by calling
+        """
+        Every difference is either displayed or recorded by calling
         this method from `self.compare_two_dirs()`.
+
         One has to be careful with file and directory paths, they are
         essentially uncontrolled user input. Don't use str.format() because
         it can throw KeyError if a filename contains `{` and `}`.
+
         A path can even contain the character `\r` erasing the line you
-        just printed, so sanitize everything."""
+        just printed, so sanitize everything.
+        """
         # Record #
         self.count += 1
         if 'Error' in status: self.errors += 1
@@ -257,8 +259,10 @@ class Analysis(object):
         print(string)
 
     def print_current_dir(self, directory):
-        """If verbosity is turned on, display the current directory
-        that is being scanned, and then print('\r' to show the next."""
+        """
+        If verbosity is turned on, display the current directory
+        that is being scanned, and then print('\r' to show the next.
+        """
         # Verbose (can't have line longer than terminal size) #
         string = '{:%i.%i}' % (self.columns-10, self.columns-10)
         string = string.format(directory + '/')
