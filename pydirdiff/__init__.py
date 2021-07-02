@@ -1,5 +1,5 @@
 # Special variables #
-__version__ = '1.2.0'
+__version__ = '1.2.1'
 version_string = "version %s" % __version__
 
 # Built-in modules #
