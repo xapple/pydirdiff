@@ -3,6 +3,9 @@
 # Built-in modules #
 import re, hashlib, unicodedata
 
+# One liners #
+flatter = lambda x: [item for sublist in x for item in sublist]
+
 ################################################################################
 def sanitize_text(text):
     """Make a safe representation of a string.
@@ -33,8 +36,10 @@ def natural_sort(item):
 ################################################################################
 def md5sum(file_path, blocksize=65536):
     """Compute the md5 of a file. Pretty fast."""
-    md5 = hashlib.md5()
+    result = hashlib.md5()
     with open(file_path, "rb") as f:
-        for block in iter(lambda: f.read(blocksize), ""):
-            md5.update(block)
-    return md5.hexdigest()
+        chunk = f.read(blocksize)
+        while chunk:
+            result.update(chunk)
+            chunk = f.read(blocksize)
+    return result.hexdigest()
