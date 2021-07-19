@@ -52,7 +52,7 @@ class Analysis(object):
                  cmp_fn        = 'md5',
                  ignore        = None,
                  debug         = False,
-                ):
+                 ):
         # Base parameters #
         self.first_dir = DirectoryPath(first_dir)
         self.secnd_dir = DirectoryPath(secnd_dir)

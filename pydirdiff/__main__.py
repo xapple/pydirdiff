@@ -3,7 +3,8 @@
 """
 An example from the command line is the following:
 
-    $ ipython3 -i -m pydirdiff -- /Volumes/FirstCopy/Files/Music /Volumes/SecondCopy/Files/Music --ignore='.git' --ignore='-Dump-' --cmp_fn='sizes_only'
+    $ ipython3 -i -m pydirdiff -- /Volumes/FirstCopy/Files/Music /Volumes/SecondCopy/Files/Music
+       --ignore='.git' --ignore='-Dump-' --cmp_fn='sizes_only'
 """
 
 # Built-in modules #
@@ -29,16 +30,21 @@ if __name__ == '__main__':
     # All the optional arguments #
     parameters = {
         "cmp_fn"        : "Either `md5` or `sizes_only`. Defaults to `md5`.",
-        "skip_dsstore"  : "Ignore all '.DS_Store' files. Either `True` or `False`. Defaults to `True`.",
-        "skip_dates"    : "Don't print files that just differ in dates. Either `True` or `False`. Defaults to `True`.",
-        "verbose"       : "Display current directory as search progresses. Either `True` or `False`. Defaults to `True`.",
+        "skip_dsstore"  : "Ignore all '.DS_Store' files. Either `True`"
+                          " or `False`. Defaults to `True`.",
+        "skip_dates"    : "Don't print files that just differ in dates."
+                          " Either `True` or `False`. Defaults to `True`.",
+        "verbose"       : "Display current directory as search progresses."
+                          " Either `True` or `False`. Defaults to `True`.",
     }
 
     # Add parameters #
-    for param, hlp in parameters.items(): parser.add_argument("--" + param, help=hlp)
+    for param, hlp in parameters.items():
+        parser.add_argument("--" + param, help=hlp)
 
     # Add multiple ignores #
-    parser.add_argument('--ignore', help="Ignore any directories with this name. Defaults to `None`.",
+    parser.add_argument('--ignore', help="Ignore any directories with this name."
+                                         " Defaults to `None`.",
                         action='append', nargs='*')
 
     # Get arguments #
@@ -47,10 +53,11 @@ if __name__ == '__main__':
     secnd_dir = args.secnd_dir
 
     # All the other parameters #
-    kwargs = {k:getattr(args, k) for k in parameters if getattr(args, k) is not None}
+    kwargs = {k: getattr(args, k) for k in parameters
+              if getattr(args, k) is not None}
 
     # Take care of multiple ignores #
-    kwargs['ignore'] = flatter(args.ignore)
+    if args.ignore: kwargs['ignore'] = flatter(args.ignore)
 
     # Run the pipeline #
     pydirdiff.Analysis(first_dir, secnd_dir, **kwargs).run()
