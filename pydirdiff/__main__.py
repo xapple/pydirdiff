@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+"""
+An example from the command line is the following:
+
+    $ ipython3 -i -m pydirdiff -- /Volumes/FirstCopy/Files/Music /Volumes/SecondCopy/Files/Music --ignore='.git' --ignore='-Dump-' --cmp_fn='sizes_only'
+"""
+
 # Built-in modules #
 import sys, argparse
 from argparse import RawTextHelpFormatter

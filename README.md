@@ -4,7 +4,7 @@ This tool compares two directories recursively and prints any differences found 
 
 Typically you could approach this problem by using a special `rsync` command such as the following:
 
-    rsync -archive --delete --verbose --dry-run --itemize-changes "$FIRST_DIR" "$SECND_DIR"
+    rsync -archive --delete --verbose --dry-run --itemize-changes "$FIRST_DIR" "$SECND_DIR" | grep +++++
 
 This method executes very quickly but the output is hard to read and understand. Pydirdiff, though slightly slower, is much better and clearer.
 
